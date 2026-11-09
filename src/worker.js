@@ -112,25 +112,23 @@ const esc = (s) =>
 function resultsPage(rows) {
   const n = rows.length;
   const avg = n ? Math.round(rows.reduce((t, r) => t + (r.loved || 0), 0) / n) : 0;
-  const demos = rows.filter((r) => r.demo === 'yes');
+  const demos = rows.filter((r) => r.demo === 'yes').length;
 
-  const answer = (label, v) => (v ? `<div class="a"><span>${label}</span><p>${esc(v)}</p></div>` : '');
-  const cards = rows
-    .map(
-      (r) => `
-    <article>
-      <header>
-        <strong>${r.name ? esc(r.name) : 'Anonymous'}</strong>
-        <span class="love" style="--p:${r.loved}%"><i></i>${r.loved}% loved</span>
-        <time>${esc(r.created_at)} UTC</time>
-      </header>
-      ${r.demo === 'yes' ? answer('Wants to demo', r.demo_details || 'Yes') : ''}
-      ${answer('Would change', r.change_next)}
-      ${answer('Topic or paper', r.topic)}
-      ${answer('Problem to solve with AI', r.problem)}
-      ${answer('AI already solved', r.solved)}
-    </article>`
-    )
+  const cols = [
+    { key: 'name', label: 'Name', cls: 'who', fmt: (r) => (r.name ? esc(r.name) : '<span class="muted">Anonymous</span>') },
+    { key: 'loved', label: 'Loved it', cls: 'num', fmt: (r) => `<span class="love" style="--p:${r.loved}%"><i></i>${r.loved}%</span>` },
+    { key: 'demo', label: 'Demo?', cls: 'short', fmt: (r) => (r.demo === 'yes' ? 'Yes' : r.demo === 'no' ? 'Not yet' : '') },
+    { key: 'demo_details', label: 'What they would demo', fmt: (r) => esc(r.demo_details) },
+    { key: 'change_next', label: 'Would change', fmt: (r) => esc(r.change_next) },
+    { key: 'topic', label: 'Topic or paper', fmt: (r) => esc(r.topic) },
+    { key: 'problem', label: 'Problem to solve with AI', fmt: (r) => esc(r.problem) },
+    { key: 'solved', label: 'AI already solved', fmt: (r) => esc(r.solved) },
+    { key: 'created_at', label: 'Submitted (UTC)', cls: 'short muted', fmt: (r) => esc(r.created_at) },
+  ];
+
+  const head = cols.map((c) => `<th class="${c.cls || ''}" data-key="${c.key}">${c.label}</th>`).join('');
+  const body = rows
+    .map((r) => `<tr>${cols.map((c) => `<td class="${c.cls || ''}" data-v="${esc(r[c.key])}">${c.fmt(r)}</td>`).join('')}</tr>`)
     .join('');
 
   const html = `<!doctype html>
@@ -141,34 +139,65 @@ function resultsPage(rows) {
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wdth,wght@12..96,75..100,300..800&display=swap" rel="stylesheet">
 <style>
   *{box-sizing:border-box}
-  body{margin:0;background:#05070f;color:#eef0fb;font-family:"Bricolage Grotesque",system-ui,sans-serif;line-height:1.5}
-  main{max-width:880px;margin:0 auto;padding:48px 20px 80px}
-  h1{font-size:clamp(36px,6vw,64px);font-stretch:78%;letter-spacing:-.02em;line-height:1;margin:0 0 28px}
-  .stats{display:flex;flex-wrap:wrap;gap:12px 40px;margin-bottom:12px}
-  .stats div b{display:block;font-size:44px;font-stretch:80%;line-height:1}
+  body{margin:0;background:#05070f;color:#eef0fb;font-family:"Bricolage Grotesque",system-ui,sans-serif;line-height:1.45}
+  header.page{padding:40px 24px 20px;max-width:1400px}
+  h1{font-size:clamp(32px,5vw,56px);font-stretch:78%;letter-spacing:-.02em;line-height:1;margin:0 0 22px}
+  .stats{display:flex;flex-wrap:wrap;gap:12px 40px;align-items:flex-end}
+  .stats div b{display:block;font-size:40px;font-stretch:80%;line-height:1}
   .stats div span{opacity:.7}
-  .dl{color:#ffcf6b;font-weight:600}
-  article{border-top:1px solid rgba(255,255,255,.14);padding:24px 0}
-  article header{display:flex;flex-wrap:wrap;align-items:center;gap:8px 18px;margin-bottom:10px}
-  article strong{font-size:20px}
-  time{opacity:.55;font-size:14px;margin-left:auto}
+  .dl{color:#ffcf6b;font-weight:600;margin-left:auto}
+  .wrap{overflow:auto;max-height:calc(100vh - 190px);margin:0 24px 40px;border:1px solid rgba(255,255,255,.14);border-radius:10px}
+  table{border-collapse:separate;border-spacing:0;min-width:100%;font-size:15px}
+  th,td{padding:10px 14px;text-align:left;vertical-align:top;border-bottom:1px solid rgba(255,255,255,.1);border-right:1px solid rgba(255,255,255,.06)}
+  td{min-width:220px;max-width:340px;white-space:pre-wrap;word-break:break-word}
+  th{position:sticky;top:0;z-index:2;background:#121630;font-weight:700;white-space:nowrap;cursor:pointer;user-select:none}
+  th:hover{background:#1a1f40}
+  th[aria-sort]::after{content:" ↓";opacity:.7}
+  th[aria-sort=ascending]::after{content:" ↑"}
+  .who{position:sticky;left:0;z-index:1;background:#0b0f22;min-width:150px;font-weight:600}
+  th.who{z-index:3;background:#121630}
+  td.num,td.short{min-width:0;white-space:nowrap}
+  tbody tr:hover td{background:#10152e}
+  tbody tr:hover td.who{background:#141a38}
   .love{display:inline-flex;align-items:center;gap:8px;font-weight:600}
-  .love i{display:inline-block;width:90px;height:8px;border-radius:4px;background:linear-gradient(90deg,#ffcf6b var(--p),rgba(255,255,255,.15) var(--p))}
-  .a{margin:10px 0}
-  .a span{font-size:13px;text-transform:none;opacity:.6}
-  .a p{margin:2px 0 0;white-space:pre-wrap}
-  .empty{opacity:.7}
+  .love i{display:inline-block;width:60px;height:8px;border-radius:4px;background:linear-gradient(90deg,#ffcf6b var(--p),rgba(255,255,255,.15) var(--p))}
+  .muted{opacity:.6}
+  .empty{padding:0 24px;opacity:.7}
 </style></head>
-<body><main>
-  <h1>Meetup feedback</h1>
-  <div class="stats">
-    <div><b>${n}</b><span>${n === 1 ? 'response' : 'responses'}</span></div>
-    <div><b>${avg}%</b><span>average love</span></div>
-    <div><b>${demos.length}</b><span>want to demo</span></div>
-  </div>
-  <p><a class="dl" href="/results.csv">Download as CSV</a></p>
-  ${cards || '<p class="empty">No responses yet. Share the form link and they will show up here.</p>'}
-</main></body></html>`;
+<body>
+  <header class="page">
+    <h1>Meetup feedback</h1>
+    <div class="stats">
+      <div><b>${n}</b><span>${n === 1 ? 'response' : 'responses'}</span></div>
+      <div><b>${avg}%</b><span>average love</span></div>
+      <div><b>${demos}</b><span>want to demo</span></div>
+      <a class="dl" href="/results.csv">Download as CSV</a>
+    </div>
+  </header>
+  ${
+    n
+      ? `<div class="wrap"><table><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table></div>`
+      : '<p class="empty">No responses yet. Share the form link and they will show up here.</p>'
+  }
+<script>
+  // Click a column header to sort by it; click again to reverse.
+  document.querySelectorAll('th').forEach((th, i) => th.addEventListener('click', () => {
+    const tbody = document.querySelector('tbody');
+    const asc = th.getAttribute('aria-sort') !== 'ascending';
+    document.querySelectorAll('th').forEach((h) => h.removeAttribute('aria-sort'));
+    th.setAttribute('aria-sort', asc ? 'ascending' : 'descending');
+    const val = (tr) => tr.children[i].dataset.v;
+    const num = th.dataset.key === 'loved';
+    [...tbody.rows]
+      .sort((a, b) => {
+        const x = val(a), y = val(b);
+        const d = num ? Number(x) - Number(y) : x.localeCompare(y);
+        return asc ? d : -d;
+      })
+      .forEach((tr) => tbody.appendChild(tr));
+  }));
+</script>
+</body></html>`;
 
   return new Response(html, { headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' } });
 }
