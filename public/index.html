@@ -154,7 +154,7 @@
     <span class="pct" id="pct">50%</span>
   </div>
   <div class="top floating-top"><div class="chips"></div><button class="back">Back</button></div>
-  <div class="ask"><h2 class="q">Did you love the meeting?</h2><p class="hint" id="meterHint">Drag the line. Further right means more love.</p></div>
+  <div class="ask"><h2 class="q">Did you love the meeting?</h2><p class="hint" id="meterHint">Drag the line, or use the up and down arrows. Further right means more love.</p></div>
   <div class="foot meter-foot"><span class="kbd">Arrow keys work too</span><button class="next" data-go>Next</button></div>
 </section>
 
@@ -299,7 +299,7 @@ function show(target,x,y,isBack){
 }
 function focusIn(s){
   const f=s.querySelector('textarea,input,.divider');
-  if(f) f.focus({preventScroll:true});
+  if(f){f.focus({preventScroll:true});if(f.setSelectionRange&&f.value){const n=f.value.length;f.setSelectionRange(n,n)}}
   else (s.querySelector('.half')||s.querySelector('.next'))?.focus({preventScroll:true});
 }
 function centerOf(el){const r=el.getBoundingClientRect();return [r.left+r.width/2,r.top+r.height/2]}
@@ -329,6 +329,37 @@ document.addEventListener('keydown',e=>{
   e.preventDefault();advance(cur.querySelector('.next'));
 });
 
+/* left and right arrows move between questions */
+function arrowNav(e){
+  if(e.shiftKey||e.altKey||e.metaKey||e.ctrlKey) return false;
+  const fwd=e.key==='ArrowRight', id=cur.dataset.id, t=e.target;
+  if(id==='thanks') return false;
+  /* inside a text box, arrows move the cursor until it reaches the start or end */
+  if(t.matches&&t.matches('textarea,input')){
+    if(t.selectionStart!==t.selectionEnd) return false;
+    if(fwd&&t.selectionEnd<t.value.length) return false;
+    if(!fwd&&t.selectionStart>0) return false;
+  }
+  if(!fwd){
+    const prev=history.pop(); if(!prev) return false;
+    const b=cur.querySelector('.back');
+    show(byId(prev),...(b?centerOf(b):[60,40]),true);
+    return true;
+  }
+  if(cur.querySelector('[data-send]')) return false; /* sending needs the Send button or Enter */
+  if(cur.classList.contains('split')){
+    if(!answers[id]) return false; /* pick an answer first */
+    history.push(id);show(byId(nextId(id)),innerWidth-60,innerHeight/2);
+    return true;
+  }
+  advance(cur.querySelector('.next'));
+  return true;
+}
+document.addEventListener('keydown',e=>{
+  if(busy||(e.key!=='ArrowRight'&&e.key!=='ArrowLeft')) return;
+  if(arrowNav(e)) e.preventDefault();
+});
+
 /* ---------- love meter ---------- */
 const meter=byId('loved'),divider=$('divider'),pct=$('pct');
 answers.loved=50;
@@ -349,8 +380,8 @@ const stop=()=>{dragging=false;meter.classList.remove('dragging')};
 meter.addEventListener('pointerup',stop);meter.addEventListener('pointercancel',stop);
 divider.addEventListener('keydown',e=>{
   const step=e.shiftKey?10:5;
-  if(e.key==='ArrowRight'||e.key==='ArrowUp'){e.preventDefault();setMeter(answers.loved+step)}
-  if(e.key==='ArrowLeft'||e.key==='ArrowDown'){e.preventDefault();setMeter(answers.loved-step)}
+  if(e.key==='ArrowUp'){e.preventDefault();setMeter(answers.loved+step)}
+  if(e.key==='ArrowDown'){e.preventDefault();setMeter(answers.loved-step)}
   if(e.key==='Home'){e.preventDefault();setMeter(0)}
   if(e.key==='End'){e.preventDefault();setMeter(100)}
 });
