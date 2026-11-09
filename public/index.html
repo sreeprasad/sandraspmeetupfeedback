@@ -1,0 +1,381 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Meetup Feedback</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wdth,wght@12..96,75..100,300..800&display=swap" rel="stylesheet">
+<style>
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;overflow:hidden;background:#0b1026}
+  body{font-family:"Bricolage Grotesque",system-ui,sans-serif;font-variation-settings:"opsz" 96}
+
+  /* every screen is a landscape: sky gradient + layered hills */
+  .screen{position:fixed;inset:0;display:flex;flex-direction:column;padding:28px clamp(20px,5vw,72px) 32px;
+    background:#05070f;color:#fff;--fg:#fff;visibility:hidden;overflow:hidden}
+  .screen.on{visibility:visible}
+  .screen > *:not(.scene){position:relative;z-index:3}
+  .scene{position:absolute;inset:0;pointer-events:none;z-index:0}
+  .photo{position:absolute;inset:-2%;background-size:cover;background-position:var(--pos,center);transform-origin:var(--pos,center)}
+  .on .photo{animation:drift 26s ease-out both}
+  @keyframes drift{from{transform:scale(1.12)}to{transform:scale(1)}}
+  .shade{position:absolute;inset:0;background:
+    linear-gradient(180deg,rgba(3,5,14,.72) 0%,rgba(3,5,14,.35) 38%,rgba(3,5,14,.2) 62%,rgba(3,5,14,.7) 100%)}
+  .credit{font-size:12px;font-weight:500;opacity:.7;max-width:46ch;line-height:1.35;text-shadow:0 1px 4px rgba(0,0,0,.6)}
+  .credit-abs{position:absolute!important;left:clamp(20px,5vw,72px);bottom:18px;z-index:4!important}
+  .q,.hint,textarea,input,.half b,.layer b{text-shadow:0 2px 18px rgba(0,0,0,.45)}
+
+  /* top bar: progress dots + back */
+  .top{display:flex;justify-content:space-between;align-items:center;min-height:36px}
+  .chips{display:flex;gap:8px}
+  .chips i{width:12px;height:12px;border-radius:50%;border:2px solid currentColor;opacity:.6}
+  .chips i.done{background:currentColor;opacity:1}
+  .chips i.here{opacity:1;transform:scale(1.3)}
+  .back{background:none;border:0;color:inherit;font-weight:600;font-size:16px;font-family:inherit;cursor:pointer;padding:8px 0;opacity:.8}
+  .back:hover{opacity:1;text-decoration:underline;text-underline-offset:4px}
+
+  .q{font-weight:750;font-stretch:78%;letter-spacing:-.025em;line-height:.95;margin:6vh 0 0;font-size:clamp(42px,7.6vw,116px);max-width:14ch}
+  .hint{font-size:clamp(17px,1.6vw,21px);font-weight:500;margin:16px 0 0;opacity:.85;max-width:40ch}
+
+  textarea,input{
+    flex:1;width:100%;max-width:1100px;margin-top:3vh;border:0;background:transparent;color:inherit;resize:none;outline:none;
+    font-family:inherit;font-weight:400;font-stretch:100%;letter-spacing:-.01em;line-height:1.12;
+    font-size:var(--fs,clamp(28px,3.8vw,52px));caret-color:currentColor;transition:font-size .25s;
+  }
+  input{flex:none}
+  ::placeholder{color:inherit;opacity:.4}
+
+  .foot{display:flex;justify-content:space-between;align-items:flex-end;gap:16px}
+  .kbd{font-size:15px;font-weight:500;opacity:.8}
+  .next{
+    margin-left:auto;width:clamp(96px,10vw,124px);aspect-ratio:1;border-radius:50%;border:0;cursor:pointer;
+    background:var(--btn,#fff);color:var(--btn-ink,#1d2433);font-weight:700;font-size:19px;font-family:inherit;
+    box-shadow:0 12px 30px -8px rgba(0,0,0,.35);transition:transform .2s cubic-bezier(.3,1.6,.5,1);
+  }
+  .next:hover{transform:scale(1.07) rotate(-4deg)}
+  .next:active{transform:scale(.95)}
+  .next:focus-visible,.half:focus-visible,.back:focus-visible{outline:3px solid #fff;outline-offset:6px}
+
+  .intro .q{font-size:clamp(52px,10vw,156px);max-width:12ch;margin-top:auto}
+  .intro .hint{margin-bottom:auto}
+
+  /* question card used on split screens so it reads over two scenes */
+  .ask{position:absolute!important;left:0;right:0;top:14vh;text-align:center;pointer-events:none;z-index:6!important;padding:0 20px}
+  .ask .q{margin:0 auto;max-width:none;font-size:clamp(32px,5vw,74px);color:#1d2433;background:rgba(255,255,255,.88);
+    display:inline-block;padding:.14em .35em .2em;border-radius:14px;backdrop-filter:blur(6px)}
+  .ask .hint{display:table;margin:12px auto 0;color:#1d2433;background:rgba(255,255,255,.88);padding:4px 12px;border-radius:999px;opacity:1}
+  .floating-top{position:absolute!important;left:0;right:0;top:0;padding:28px clamp(20px,5vw,72px);color:#fff;z-index:7!important;text-shadow:0 1px 6px rgba(0,0,0,.3)}
+
+  /* split yes/no (demo) */
+  .split{padding:0}
+  .halves{display:flex;flex:1}
+  .half{
+    position:relative;overflow:hidden;flex:1;border:0;cursor:pointer;color:#fff;font-family:inherit;text-align:left;
+    background:#05070f;
+    display:flex;flex-direction:column;justify-content:flex-end;padding:0 clamp(20px,4vw,56px) clamp(28px,6vh,64px);
+    transition:flex-grow .45s cubic-bezier(.3,1.3,.5,1);
+  }
+  .half > *:not(.scene){position:relative;z-index:2}
+  .half:hover,.half:focus-visible{flex-grow:1.45}
+  .half .credit{position:absolute;left:clamp(20px,4vw,56px);bottom:14px;margin:0}
+  .half{padding-bottom:clamp(48px,8vh,84px)!important}
+  .half b{display:block;font-weight:800;font-stretch:75%;letter-spacing:-.03em;line-height:.9;font-size:clamp(52px,9vw,150px)}
+  .half span{font-size:clamp(16px,1.5vw,20px);font-weight:600;margin-top:10px}
+  .half.picked{flex-grow:9}
+
+  /* love meter: sunny meadow vs grey drizzle, split by a line you drag */
+  .meter{padding:0;--p:50%;cursor:ew-resize;touch-action:none;user-select:none;-webkit-user-select:none}
+  .layer{position:absolute!important;inset:0;z-index:1!important;overflow:hidden;color:#fff;background:#05070f}
+  .layer.back .photo{filter:grayscale(1) brightness(.75)}
+  .layer .labels{position:absolute;inset:0;z-index:2;display:flex}
+  .layer .labels div{flex:1;display:flex;align-items:flex-end;padding:0 clamp(20px,4vw,56px) clamp(150px,22vh,210px)}
+  .layer .labels div+div{justify-content:flex-end}
+  .layer b{font-weight:800;font-stretch:75%;letter-spacing:-.03em;line-height:.9;font-size:clamp(46px,8vw,132px)}
+  .layer.front{clip-path:inset(0 calc(100% - var(--p)) 0 0);z-index:2!important}
+  .rain{position:absolute;inset:0;background-image:repeating-linear-gradient(105deg,transparent 0 22px,rgba(255,255,255,.22) 22px 23px);
+    background-size:100% 60px;animation:rain .6s linear infinite;opacity:.6}
+  @keyframes rain{to{background-position:-16px 60px}}
+  .divider{position:absolute!important;top:0;bottom:0;left:var(--p);width:0;z-index:5!important;outline:none}
+  .divider::before{content:"";position:absolute;top:0;bottom:0;left:-2px;width:4px;background:#fff;box-shadow:0 0 12px rgba(0,0,0,.25)}
+  .pct{position:absolute;top:50%;left:0;transform:translate(-50%,-50%);display:grid;place-items:center;
+    width:clamp(104px,11vw,136px);aspect-ratio:1;border-radius:50%;background:#fff;color:#1d2433;
+    font-weight:800;font-stretch:80%;font-size:clamp(30px,3.2vw,40px);letter-spacing:-.02em;cursor:grab;
+    box-shadow:0 12px 30px rgba(0,0,0,.3);transition:transform .15s}
+  .meter.dragging .pct{cursor:grabbing;transform:translate(-50%,-50%) scale(1.1)}
+  .divider:focus-visible .pct{outline:4px solid #ffcf6b;outline-offset:5px}
+  .meter-foot{position:absolute!important;left:0;right:0;bottom:0;padding:0 clamp(20px,5vw,72px) 32px;z-index:7!important}
+  .meter-foot .kbd{color:#fff;text-shadow:0 1px 6px rgba(0,0,0,.4)}
+
+  /* thanks under the stars */
+  .thanks{justify-content:center;align-items:center;text-align:center}
+  .thanks .q{margin:0;max-width:none;font-size:clamp(56px,10vw,140px);opacity:0;animation:fade 1s .5s forwards}
+  .thanks .hint{margin:18px auto 0;opacity:0;animation:fade 1s .9s forwards}
+  @keyframes fade{to{opacity:.95}}
+  .thanks .shade{background:radial-gradient(ellipse at center,rgba(3,5,14,.55),rgba(3,5,14,.25) 70%)}
+  .ask .q,.ask .hint{background:rgba(5,7,15,.5)!important;color:#fff!important;text-shadow:none;backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,.18)}
+  .err{margin:0 0 0 auto;max-width:34ch;font-size:16px;font-weight:600;color:#ffd0c4;text-align:right;align-self:center}
+  .err:empty{display:none}
+  .shoot{position:absolute;top:12%;left:70%;width:120px;height:2px;background:linear-gradient(90deg,#fff,transparent);
+    transform:rotate(-20deg);opacity:0;animation:shoot 1.4s 1.4s ease-out forwards}
+  @keyframes shoot{0%{opacity:0;translate:0 0}20%{opacity:1}100%{opacity:0;translate:-420px 160px}}
+
+  @media (max-width:640px){
+    .halves{flex-direction:column}
+    .half{justify-content:flex-end;padding-bottom:28px}
+    .ask{top:76px}
+    .kbd{display:none}
+    .layer b{font-size:40px}
+    .layer .labels div{padding-bottom:180px}
+    .hills{height:26vh}
+  }
+  @media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}.thanks .q,.thanks .hint{opacity:.95}}
+</style>
+</head>
+<body>
+
+<!-- 0 dawn -->
+<section class="screen intro" data-id="intro" data-scene="earthrise">
+  <div class="top"><span style="font-weight:600">Sreeprasad &amp; Sandra</span></div>
+  <h1 class="q">How was last week, really?</h1>
+  <p class="hint">Six quick questions about the meetup. Type as much or as little as you want.</p>
+  <div class="foot"><span class="kbd">or press Enter</span><button class="next" data-go>Start</button></div>
+</section>
+
+<!-- 1 love meter -->
+<section class="screen meter" data-id="loved" data-step="1">
+  <div class="layer back" data-scene="moon" aria-hidden="true">
+    <div class="labels"><div><b>Loved it</b></div><div><b>Not really</b></div></div>
+  </div>
+  <div class="layer front" data-scene="bluemarble" aria-hidden="true">
+    <div class="labels"><div><b>Loved it</b></div><div><b>Not really</b></div></div>
+  </div>
+  <div class="divider" id="divider" role="slider" tabindex="0" aria-label="How much did you love the meeting?" aria-valuemin="0" aria-valuemax="100" aria-valuenow="50" aria-valuetext="50%">
+    <span class="pct" id="pct">50%</span>
+  </div>
+  <div class="top floating-top"><div class="chips"></div><button class="back">Back</button></div>
+  <div class="ask"><h2 class="q">Did you love the meeting?</h2><p class="hint" id="meterHint">Drag the line. Further right means more love.</p></div>
+  <div class="foot meter-foot"><span class="kbd">Arrow keys work too</span><button class="next" data-go>Next</button></div>
+</section>
+
+<!-- 2 morning -->
+<section class="screen" data-id="change" data-step="2" data-scene="saturn">
+  <div class="top"><div class="chips"></div><button class="back">Back</button></div>
+  <h2 class="q">What would you change next time?</h2>
+  <p class="hint">If anything. Format, timing, food, topics.</p>
+  <textarea name="change" placeholder="Start typing…"></textarea>
+  <div class="foot"><span class="kbd">Enter to continue · Shift+Enter for a new line</span><button class="next" data-go>Next</button></div>
+</section>
+
+<!-- 3 demo: sunny field or shady forest -->
+<section class="screen split" data-id="demo" data-step="3">
+  <div class="top floating-top"><div class="chips"></div><button class="back">Back</button></div>
+  <div class="ask"><h2 class="q">Want to demo something?</h2><p class="hint">No pressure.</p></div>
+  <div class="halves">
+    <button class="half" data-val="yes" data-scene="cliffs"><b>Yes</b><span>I've got something</span></button>
+    <button class="half" data-val="no" data-scene="aurora"><b>Not yet</b><span>Maybe next time</span></button>
+  </div>
+</section>
+
+<!-- 3b noon -->
+<section class="screen" data-id="demo_details" data-step="3" data-scene="cliffs2">
+  <div class="top"><div class="chips"></div><button class="back">Back</button></div>
+  <h2 class="q">Nice. What would you show?</h2>
+  <p class="hint">A sentence is plenty. We'll reach out about a slot.</p>
+  <textarea name="demo_details" placeholder="Start typing…"></textarea>
+  <div class="foot"><span class="kbd">Enter to continue</span><button class="next" data-go>Next</button></div>
+</section>
+
+<!-- 4 golden hour -->
+<section class="screen" data-id="topic" data-step="4" data-scene="pillars">
+  <div class="top"><div class="chips"></div><button class="back">Back</button></div>
+  <h2 class="q">A topic or paper you'd like to discuss?</h2>
+  <p class="hint">Links welcome.</p>
+  <textarea name="topic" placeholder="Start typing…"></textarea>
+  <div class="foot"><span class="kbd">Enter to continue</span><button class="next" data-go>Next</button></div>
+</section>
+
+<!-- 5 sunset -->
+<section class="screen" data-id="problem" data-step="5" data-scene="jem">
+  <div class="top"><div class="chips"></div><button class="back">Back</button></div>
+  <h2 class="q">A problem you'd love to solve using AI?</h2>
+  <p class="hint">Work, home, the weird stuff.</p>
+  <textarea name="problem" placeholder="Start typing…"></textarea>
+  <div class="foot"><span class="kbd">Enter to continue</span><button class="next" data-go>Next</button></div>
+</section>
+
+<!-- 6 dusk -->
+<section class="screen" data-id="solved" data-step="6" data-scene="deepfield">
+  <div class="top"><div class="chips"></div><button class="back">Back</button></div>
+  <h2 class="q">Something AI already solved for you?</h2>
+  <p class="hint">Share the win, big or small.</p>
+  <textarea name="solved" placeholder="Start typing…"></textarea>
+  <div class="foot"><span class="kbd">Enter to continue</span><button class="next" data-go>Next</button></div>
+</section>
+
+<!-- 7 nightfall -->
+<section class="screen" data-id="name" data-step="7" data-scene="aurora2">
+  <div class="top"><div class="chips"></div><button class="back">Back</button></div>
+  <h2 class="q">Who's this from?</h2>
+  <p class="hint">Optional. Leave it blank to stay anonymous.</p>
+  <input name="name" placeholder="Your name" autocomplete="name">
+  <div style="flex:1"></div>
+  <div class="foot"><p class="err" id="err" role="alert"></p><button class="next" data-go data-send>Send</button></div>
+</section>
+
+<!-- thanks: starry night -->
+<section class="screen thanks" data-id="thanks" data-scene="home">
+  <div class="shoot" aria-hidden="true"></div>
+  <h2 class="q">Thank you.</h2>
+  <p class="hint">Sreeprasad and Sandra will read every answer. See you at the next one.</p>
+</section>
+
+<script>
+const $=id=>document.getElementById(id);
+
+/* ---------- photos (NASA and Wikimedia Commons) ---------- */
+const FP=(f,w=2000)=>`https://commons.wikimedia.org/wiki/Special:FilePath/${encodeURIComponent(f).replace(/'/g,'%27')}?width=${w}`;
+const PHOTOS={
+  earthrise:{f:'NASA_Earthrise_AS08-14-2383_Apollo_8_1968-12-24.jpg',pos:'50% 35%',c:'Earthrise, Apollo 8. NASA / Bill Anders'},
+  home:     {f:'NASA_Earthrise_AS08-14-2383_Apollo_8_1968-12-24.jpg',pos:'50% 35%',c:'Earthrise, Apollo 8. NASA / Bill Anders'},
+  bluemarble:{f:'The_Earth_seen_from_Apollo_17.jpg',pos:'50% 50%',c:'The Blue Marble, Apollo 17. NASA'},
+  moon:     {f:'FullMoon2010.jpg',pos:'50% 50%',c:'Full Moon. Gregory H. Revera, CC BY-SA 3.0'},
+  saturn:   {f:'Saturn_during_Equinox.jpg',pos:'50% 50%',c:'Saturn at equinox, Cassini. NASA / JPL / Space Science Institute'},
+  cliffs:   {f:'NASA’s_Webb_Reveals_Cosmic_Cliffs,_Glittering_Landscape_of_Star_Birth.jpg',pos:'40% 60%',c:'Cosmic Cliffs, Carina Nebula. NASA, ESA, CSA, STScI'},
+  cliffs2:  {f:'NASA’s_Webb_Reveals_Cosmic_Cliffs,_Glittering_Landscape_of_Star_Birth.jpg',pos:'65% 65%',c:'Cosmic Cliffs, Carina Nebula. NASA, ESA, CSA, STScI'},
+  aurora:   {f:'Aurora_Australis_From_ISS.JPG',pos:'50% 50%',c:'Aurora Australis from the ISS. NASA'},
+  aurora2:  {f:'Aurora_Australis_From_ISS.JPG',pos:'30% 60%',c:'Aurora Australis from the ISS. NASA'},
+  pillars:  {f:'Pillars_of_Creation_(NIRCam_Image).jpg',pos:'50% 40%',c:'Pillars of Creation, Webb. NASA, ESA, CSA, STScI'},
+  jem:      {f:"ISS-45_Aurora_and_Stars_From_the_Space_Station's_JEM_Window.jpg",pos:'50% 50%',c:'Aurora and stars from the Space Station. NASA'},
+  deepfield:{f:"Webb's_First_Deep_Field.jpg",pos:'50% 50%',c:"Webb's First Deep Field. NASA, ESA, CSA, STScI"}
+};
+function paint(el,key){
+  const p=PHOTOS[key]; if(!p) return;
+  const scene=document.createElement('div');scene.className='scene';scene.setAttribute('aria-hidden','true');
+  scene.innerHTML=`<div class="photo" style="background-image:url('${FP(p.f)}');--pos:${p.pos}"></div><div class="shade"></div>`;
+  el.prepend(scene);
+  /* credit line */
+  const cr=document.createElement('p');cr.className='credit';cr.textContent=p.c;
+  if(el.classList.contains('half')){el.appendChild(cr);return}
+  if(el.classList.contains('layer')) return;
+  const foot=el.querySelector('.foot');
+  if(foot){foot.querySelector('.kbd')?.remove();foot.prepend(cr)}
+  else{cr.classList.add('credit-abs');el.appendChild(cr)}
+}
+document.querySelectorAll('[data-scene]').forEach(el=>paint(el,el.dataset.scene));
+/* the love meter shows both credits in its footer */
+document.querySelector('.meter-foot .kbd').outerHTML=`<p class="credit">${PHOTOS.bluemarble.c}<br>${PHOTOS.moon.c}</p>`;
+
+/* ---------- flow ---------- */
+const screens=[...document.querySelectorAll('.screen')];
+const byId=id=>screens.find(s=>s.dataset.id===id);
+const answers={};
+const steps=6;
+const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+let cur=byId('intro'), history=[], busy=false;
+
+document.querySelectorAll('.chips').forEach(c=>{for(let k=0;k<steps;k++)c.appendChild(document.createElement('i'))});
+function paintChips(screen){
+  const here=+screen.dataset.step||0;
+  screen.querySelectorAll('.chips i').forEach((dot,k)=>{dot.classList.toggle('done',k+1<here);dot.classList.toggle('here',k+1===here)});
+}
+function nextId(id){
+  return {intro:'loved',loved:'change',change:'demo',demo:answers.demo==='yes'?'demo_details':'topic',
+    demo_details:'topic',topic:'problem',problem:'solved',solved:'name',name:'thanks'}[id];
+}
+/* the next scene opens out from where you clicked */
+function show(target,x,y,isBack){
+  if(busy||!target) return;
+  busy=true;paintChips(target);
+  const prev=cur;
+  target.style.zIndex=10;prev.style.zIndex=5;target.classList.add('on');
+  target.querySelectorAll('.half').forEach(h=>h.classList.remove('picked'));
+  const finish=()=>{prev.classList.remove('on');prev.style.zIndex='';target.style.zIndex='';cur=target;busy=false;focusIn(target)};
+  if(reduce){finish();return}
+  x??=innerWidth/2;y??=innerHeight/2;
+  const rad=Math.hypot(Math.max(x,innerWidth-x),Math.max(y,innerHeight-y));
+  target.animate([{clipPath:`circle(0px at ${x}px ${y}px)`},{clipPath:`circle(${rad}px at ${x}px ${y}px)`}],
+    {duration:isBack?450:800,easing:'cubic-bezier(.7,0,.2,1)'}).onfinish=finish;
+}
+function focusIn(s){
+  const f=s.querySelector('textarea,input,.divider');
+  if(f) f.focus({preventScroll:true});
+  else (s.querySelector('.half')||s.querySelector('.next'))?.focus({preventScroll:true});
+}
+function centerOf(el){const r=el.getBoundingClientRect();return [r.left+r.width/2,r.top+r.height/2]}
+function advance(fromEl){
+  if(cur.querySelector('[data-send]')){send(fromEl);return}
+  const [x,y]=fromEl?centerOf(fromEl):[innerWidth-90,innerHeight-90];
+  history.push(cur.dataset.id);show(byId(nextId(cur.dataset.id)),x,y);
+}
+document.querySelectorAll('[data-go]').forEach(b=>b.addEventListener('click',()=>advance(b)));
+document.querySelectorAll('.half').forEach(h=>h.addEventListener('click',e=>{
+  if(busy) return;
+  const scr=h.closest('.screen');
+  answers[scr.dataset.id]=h.dataset.val;h.classList.add('picked');
+  const x=e.clientX||centerOf(h)[0],y=e.clientY||centerOf(h)[1];
+  setTimeout(()=>{history.push(scr.dataset.id);show(byId(nextId(scr.dataset.id)),x,y)},reduce?0:380);
+}));
+document.querySelectorAll('.back').forEach(b=>b.addEventListener('click',e=>{
+  e.stopPropagation();const id=history.pop();if(id) show(byId(id),...centerOf(b),true);
+}));
+document.querySelectorAll('textarea').forEach(t=>t.addEventListener('input',()=>{
+  const n=t.value.length;
+  t.style.setProperty('--fs',n<40?null:n<120?'clamp(24px,3.2vw,44px)':n<260?'clamp(21px,2.5vw,32px)':'clamp(18px,1.9vw,25px)');
+}));
+document.addEventListener('keydown',e=>{
+  if(e.key!=='Enter'||e.shiftKey||busy) return;
+  if(cur.classList.contains('split')||cur.dataset.id==='thanks') return;
+  e.preventDefault();advance(cur.querySelector('.next'));
+});
+
+/* ---------- love meter ---------- */
+const meter=byId('loved'),divider=$('divider'),pct=$('pct');
+answers.loved=50;
+const meterWords=p=>p>=90?'Loved it. Truly.':p>=70?'Pretty great.':p>=45?'Somewhere in the middle.':p>=20?'Not quite there.':'Not for me.';
+function setMeter(p){
+  p=Math.round(Math.min(100,Math.max(0,p)));answers.loved=p;
+  meter.style.setProperty('--p',p+'%');pct.textContent=p+'%';
+  divider.setAttribute('aria-valuenow',p);divider.setAttribute('aria-valuetext',p+'% loved');
+  $('meterHint').textContent=meterWords(p);
+}
+let dragging=false;
+meter.addEventListener('pointerdown',e=>{
+  if(e.target.closest('.next,.back')) return;
+  dragging=true;meter.classList.add('dragging');meter.setPointerCapture(e.pointerId);setMeter(e.clientX/innerWidth*100);
+});
+meter.addEventListener('pointermove',e=>{if(dragging) setMeter(e.clientX/innerWidth*100)});
+const stop=()=>{dragging=false;meter.classList.remove('dragging')};
+meter.addEventListener('pointerup',stop);meter.addEventListener('pointercancel',stop);
+divider.addEventListener('keydown',e=>{
+  const step=e.shiftKey?10:5;
+  if(e.key==='ArrowRight'||e.key==='ArrowUp'){e.preventDefault();setMeter(answers.loved+step)}
+  if(e.key==='ArrowLeft'||e.key==='ArrowDown'){e.preventDefault();setMeter(answers.loved-step)}
+  if(e.key==='Home'){e.preventDefault();setMeter(0)}
+  if(e.key==='End'){e.preventDefault();setMeter(100)}
+});
+
+/* ---------- send ---------- */
+async function send(btn){
+  if(busy) return;
+  const payload={loved:answers.loved,demo:answers.demo||''};
+  document.querySelectorAll('textarea,input').forEach(f=>payload[f.name]=f.value.trim());
+  if(payload.demo!=='yes') payload.demo_details='';
+  const err=$('err');
+  err.textContent='';btn.textContent='Sending';btn.disabled=true;
+  try{
+    const r=await fetch('/api/submit',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(payload)});
+    if(!r.ok) throw new Error();
+  }catch(e){
+    err.textContent="Your answers didn't send. Check your connection and press Send again.";
+    btn.textContent='Send';btn.disabled=false;
+    return;
+  }
+  btn.textContent='Sent';
+  show(byId('thanks'),...centerOf(btn));
+}
+
+paintChips(cur);cur.classList.add('on');focusIn(cur);
+</script>
+</body>
+</html>
