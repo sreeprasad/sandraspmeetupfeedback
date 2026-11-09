@@ -7,7 +7,7 @@
     {
       "binding": "DB",
       "database_name": "meetup-feedback",
-      "database_id": "REPLACE_WITH_YOUR_DATABASE_ID"
+      "database_id": "e56153f3-6022-4a53-8608-fad2a28139d1"
     }
   ]
 }
